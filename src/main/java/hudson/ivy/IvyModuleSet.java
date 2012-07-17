@@ -792,7 +792,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
             super();
             load();
             if (dynamicRevision == null) {
-                dynamicRevision = "latest\\..*|working@.*|.*\\$\\{.*";
+                dynamicRevision = "latest\\.integration|.*,\\)";
             }
         }
 
