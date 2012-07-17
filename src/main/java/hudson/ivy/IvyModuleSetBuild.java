@@ -766,7 +766,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             this.ivySettingsFile = project.getIvySettingsFile();
             this.ivySettingsPropertyFiles = project.getIvySettingsPropertyFiles();
             this.workspaceProper = project.getLastBuild().getWorkspace().getRemote();
-            this.unknownRevisionPattern = project.getDescriptor().getUnknownRevisionPattern();
+            this.unknownRevisionPattern = project.getDescriptor().getDynamicRevisionPattern();
         }
 
 		@SuppressWarnings("unchecked")

@@ -329,7 +329,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
      */
     public ModuleDependency asDependency() {
         return new ModuleDependency(moduleName, Functions.defaulted(revision, ModuleDependency.UNKNOWN), Functions.defaulted(ivyBranch,
-                ModuleDependency.UNKNOWN), getParent().getDescriptor().getUnknownRevisionPattern());
+                ModuleDependency.UNKNOWN), getParent().getDescriptor().getDynamicRevisionPattern());
     }
 
     @Override

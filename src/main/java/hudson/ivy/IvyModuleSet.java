@@ -766,14 +766,14 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
          * Globally-defined ANT_OPTS.
          */
         private String globalAntOpts;
-        private String unknownRevision;
-        private transient Pattern unknownRevisionPattern;
+        private String dynamicRevision;
+        private transient Pattern dynamicRevisionPattern;
 
         public DescriptorImpl() {
             super();
             load();
-            if (unknownRevision == null) {
-                unknownRevision = "latest\\..*|working@.*|.*\\$\\{.*";
+            if (dynamicRevision == null) {
+                dynamicRevision = "latest\\..*|working@.*|.*\\$\\{.*";
             }
         }
 
@@ -786,21 +786,21 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
             save();
         }
 
-        public String getUnknownRevision() {
-            return unknownRevision;
+        public String getDynamicRevision() {
+            return dynamicRevision;
         }
 
-        public Pattern getUnknownRevisionPattern() {
-            if (unknownRevision == null) return null;
+        public Pattern getDynamicRevisionPattern() {
+            if (dynamicRevision == null) return null;
             
-            if (unknownRevisionPattern == null) {
-                unknownRevisionPattern = Pattern.compile(unknownRevision);
+            if (dynamicRevisionPattern == null) {
+                dynamicRevisionPattern = Pattern.compile(dynamicRevision);
             }
-            return unknownRevisionPattern;
+            return dynamicRevisionPattern;
         }
 
-        public void setRevisionMatchingPattern(Pattern revisionMatchingPattern) {
-            this.unknownRevisionPattern = revisionMatchingPattern;
+        public void setDynamicRevisionPattern(Pattern dynamicRevisionPattern) {
+            this.dynamicRevisionPattern = dynamicRevisionPattern;
         }
 
         @Override
@@ -815,13 +815,13 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
         @Override
         public boolean configure( StaplerRequest req, JSONObject o ) throws FormException {
             globalAntOpts = Util.fixEmptyAndTrim(o.getString("globalAntOpts"));
-            String patternString = StringUtils.trim(o.getString("unknownRevisionPattern"));
+            String patternString = StringUtils.trim(o.getString("dynamicRevisionPattern"));
             if (patternString != null) {
                 try {
-                    unknownRevisionPattern = Pattern.compile(patternString);
-                    unknownRevision = patternString;
+                    dynamicRevisionPattern = Pattern.compile(patternString);
+                    dynamicRevision = patternString;
                 } catch (PatternSyntaxException e) {
-                    throw new FormException("Not a valid regular expression: " + patternString, e, "revisionMatchingPattern");
+                    throw new FormException("Not a valid regular expression: " + patternString, e, "dynamicRevisionPattern");
                 }
             }
             save();
