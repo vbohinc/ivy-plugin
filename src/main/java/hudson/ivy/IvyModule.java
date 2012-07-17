@@ -30,10 +30,15 @@ import hudson.model.AbstractProject;
 import hudson.model.Cause.UpstreamCause;
 import hudson.model.Action;
 import hudson.model.DependencyGraph;
+import hudson.model.DependencyGraph.Dependency;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
+import hudson.model.Descriptor.FormException;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
+import hudson.model.Resource;
+import hudson.model.Result;
+import hudson.model.Saveable;
+import hudson.model.Hudson;
 import hudson.model.JDK;
 import hudson.model.Job;
 import hudson.model.Label;
@@ -47,8 +52,8 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildWrapper;
-import hudson.tasks.LogRotator;
 import hudson.tasks.Publisher;
+import hudson.tasks.LogRotator;
 import hudson.util.DescribableList;
 
 import java.io.IOException;
@@ -61,6 +66,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 
@@ -408,6 +414,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
             return;
         
         IvyDependencyComputationData data = graph.getComputationalData(IvyDependencyComputationData.class);
+        Pattern dynamicRevisionPattern = getParent().getDescriptor().getDynamicRevisionPattern();
 
         // Build a map of all Ivy modules in this Jenkins instance as dependencies.
         if (!getParent().ignoreUpstreamChanges() && data == null) {
@@ -438,6 +445,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         AbstractProject<?, ?> downstream = getParent().isAggregatorStyleBuild() ? getParent() : this;
 
         for (ModuleDependency d : dependencies) {
+            if (!(ModuleDependency.UNKNOWN.equals(d.revision) || dynamicRevisionPattern.matcher(d.revision).matches())) continue;
             IvyModule src = myParentsModules.get(d);
             if (src == null) {
                 src = myParentsModules.get(d.withUnknownRevision());

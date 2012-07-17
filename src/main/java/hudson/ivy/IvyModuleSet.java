@@ -32,22 +32,22 @@ import hudson.Util;
 import hudson.ivy.builder.AntIvyBuilderType;
 import hudson.ivy.builder.IvyBuilderType;
 import hudson.ivy.builder.NAntIvyBuilderType;
-import hudson.model.AbstractProject;
 import hudson.model.Action;
 import hudson.model.BuildableItemWithBuildWrappers;
 import hudson.model.DependencyGraph;
 import hudson.model.Descriptor;
-import hudson.model.Executor;
-import hudson.model.Hudson;
+import hudson.model.Descriptor.FormException;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
-import hudson.model.Job;
-import hudson.model.Queue;
 import hudson.model.ResourceActivity;
 import hudson.model.SCMedItem;
 import hudson.model.Saveable;
 import hudson.model.TopLevelItem;
-import hudson.model.Descriptor.FormException;
+import hudson.model.AbstractProject;
+import hudson.model.Executor;
+import hudson.model.Hudson;
+import hudson.model.Job;
+import hudson.model.Queue;
 import hudson.model.Queue.Task;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.search.CollectionSearchIndex;
@@ -73,11 +73,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.servlet.ServletException;
 
 import net.sf.json.JSONObject;
 
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -182,6 +185,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
      */
     private boolean useUpstreamParameters = false;
 
+    @Override
     public boolean isUseUpstreamParameters() {
         return useUpstreamParameters;
     }
@@ -606,6 +610,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
             this.module = module;
         }
 
+        @Override
         public String getShortDescription() {
             return Messages.IvyModuleSet_ModuleBuildInProgress(module.getName());
         }
@@ -780,10 +785,15 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
          * Globally-defined ANT_OPTS.
          */
         private String globalAntOpts;
+        private String dynamicRevision;
+        private transient Pattern dynamicRevisionPattern;
 
         public DescriptorImpl() {
             super();
             load();
+            if (dynamicRevision == null) {
+                dynamicRevision = "latest\\..*|working@.*|.*\\$\\{.*";
+            }
         }
 
         public String getGlobalAntOpts() {
@@ -793,6 +803,23 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
         public void setGlobalAntOpts(String globalAntOpts) {
             this.globalAntOpts = globalAntOpts;
             save();
+        }
+
+        public String getDynamicRevision() {
+            return dynamicRevision;
+        }
+
+        public Pattern getDynamicRevisionPattern() {
+            if (dynamicRevision == null) return null;
+            
+            if (dynamicRevisionPattern == null) {
+                dynamicRevisionPattern = Pattern.compile(dynamicRevision);
+            }
+            return dynamicRevisionPattern;
+        }
+
+        public void setDynamicRevisionPattern(Pattern dynamicRevisionPattern) {
+            this.dynamicRevisionPattern = dynamicRevisionPattern;
         }
 
         @Override
@@ -805,8 +832,17 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
         }
 
         @Override
-        public boolean configure( StaplerRequest req, JSONObject o ) {
+        public boolean configure( StaplerRequest req, JSONObject o ) throws FormException {
             globalAntOpts = Util.fixEmptyAndTrim(o.getString("globalAntOpts"));
+            String patternString = StringUtils.trim(o.getString("dynamicRevisionPattern"));
+            if (patternString != null) {
+                try {
+                    dynamicRevisionPattern = Pattern.compile(patternString);
+                    dynamicRevision = patternString;
+                } catch (PatternSyntaxException e) {
+                    throw new FormException("Not a valid regular expression: " + patternString, e, "dynamicRevisionPattern");
+                }
+            }
             save();
 
             return true;

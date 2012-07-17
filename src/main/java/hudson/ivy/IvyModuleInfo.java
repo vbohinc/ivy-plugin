@@ -84,8 +84,7 @@ final class IvyModuleInfo implements Serializable {
     public IvyModuleInfo(ModuleDescriptor module, String relativePathToDescriptor) {
         this.name = new ModuleName(module);
         ModuleRevisionId mrid = module.getModuleRevisionId();
-        this.revision = (mrid.getRevision() == null || mrid.getRevision().startsWith("working@") || mrid.getRevision().contains("${")) ? ModuleDependency.UNKNOWN
-                : mrid.getRevision();
+        this.revision = (mrid.getRevision() == null || mrid.getRevision().startsWith("working@") || mrid.getRevision().contains("${")) ? ModuleDependency.UNKNOWN : mrid.getRevision();
         this.branch = (mrid.getBranch() == null || mrid.getBranch().contains("${")) ? ModuleDependency.UNKNOWN : mrid.getBranch();
         this.displayName = mrid.getName();
         this.relativePathToDescriptor = relativePathToDescriptor;
