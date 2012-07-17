@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 
@@ -329,7 +330,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
      */
     public ModuleDependency asDependency() {
         return new ModuleDependency(moduleName, Functions.defaulted(revision, ModuleDependency.UNKNOWN), Functions.defaulted(ivyBranch,
-                ModuleDependency.UNKNOWN), getParent().getDescriptor().getDynamicRevisionPattern());
+                ModuleDependency.UNKNOWN));
     }
 
     @Override
@@ -406,6 +407,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
             return;
         
         IvyDependencyComputationData data = graph.getComputationalData(IvyDependencyComputationData.class);
+        Pattern dynamicRevisionPattern = getParent().getDescriptor().getDynamicRevisionPattern();
 
         // Build a map of all Ivy modules in this Jenkins instance as dependencies.
         if (!getParent().ignoreUpstreamChanges() && data == null) {
@@ -436,6 +438,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         AbstractProject<?, ?> downstream = getParent().isAggregatorStyleBuild() ? getParent() : this;
 
         for (ModuleDependency d : dependencies) {
+            if (!(ModuleDependency.UNKNOWN.equals(d.revision) || dynamicRevisionPattern.matcher(d.revision).matches())) continue;
             IvyModule src = myParentsModules.get(d);
             if (src == null) {
                 src = myParentsModules.get(d.withUnknownRevision());

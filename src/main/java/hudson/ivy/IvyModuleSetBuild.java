@@ -66,7 +66,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.ivy.Ivy;
@@ -753,7 +752,6 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
         private final String ivyBranch;
         private final String workspace;
         private final String workspaceProper;
-        private final Pattern unknownRevisionPattern;
 
         public IvyXmlParser(BuildListener listener, IvyModuleSet project, String workspace) {
             // project cannot be shipped to the remote JVM, so all the relevant
@@ -766,7 +764,6 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             this.ivySettingsFile = project.getIvySettingsFile();
             this.ivySettingsPropertyFiles = project.getIvySettingsPropertyFiles();
             this.workspaceProper = project.getLastBuild().getWorkspace().getRemote();
-            this.unknownRevisionPattern = project.getDescriptor().getDynamicRevisionPattern();
         }
 
 		@SuppressWarnings("unchecked")
@@ -803,7 +800,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             List<IvyModuleInfo> infos = new ArrayList<IvyModuleInfo>();
             List<ModuleDescriptor> sortedModuleDescriptors = ivy.sortModuleDescriptors(moduleDescriptors.keySet(), SortOptions.DEFAULT);
             for (ModuleDescriptor moduleDescriptor : sortedModuleDescriptors) {
-                infos.add(new IvyModuleInfo(moduleDescriptor, moduleDescriptors.get(moduleDescriptor), unknownRevisionPattern));
+                infos.add(new IvyModuleInfo(moduleDescriptor, moduleDescriptors.get(moduleDescriptor)));
             }
 
             if (verbose) {
