@@ -25,6 +25,7 @@ package hudson.ivy;
 
 import hudson.AbortException;
 import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
 import hudson.ivy.IvyBuild.ProxyImpl2;
@@ -58,16 +59,8 @@ import java.io.PrintStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -82,6 +75,8 @@ import org.apache.ivy.plugins.parser.ModuleDescriptorParserRegistry;
 import org.apache.ivy.util.Message;
 import org.apache.tools.ant.BuildEvent;
 import org.apache.tools.ant.types.FileSet;
+import org.jenkinsci.lib.configprovider.model.Config;
+import org.jenkinsci.plugins.configfiles.buildwrapper.CleanTempFilesAction;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -108,6 +103,8 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
      * there's none.
      */
     /* package */List<IvyReporter> projectActionReporters;
+
+    private transient String settings;
 
     public IvyModuleSetBuild(IvyModuleSet job) throws IOException {
         super(job);
@@ -367,6 +364,15 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                 EnvVars envVars = getEnvironment(listener);
 
                 long startTime = System.currentTimeMillis();
+                Config config = IvyConfig.provider.getConfigById(project.getSettings());
+                if (config != null) {
+                    FilePath tmp = getWorkspace().createTextTempFile("ivy", "xml", config.content);
+                    settings = tmp.getRemote();
+                    addAction(new CleanTempFilesAction(Collections.singletonList(settings)));
+
+                } else {
+                    settings = project.getIvySettingsFile();
+                }
                 parseIvyDescriptorFiles(listener, logger, envVars);
                 if (AbstractIvyBuild.debug)
                     logger.println("Parsed Ivy descriptors in " + (System.currentTimeMillis() - startTime) + "ms");
@@ -568,7 +574,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
             List<IvyModuleInfo> ivyDescriptors;
             try {
-            	IvyXmlParser parser = new IvyXmlParser(listener, project, getModuleRoot().getRemote());
+            	IvyXmlParser parser = new IvyXmlParser(listener, project, settings, getModuleRoot().getRemote());
             	if (getModuleRoot().getChannel() instanceof Channel)
             		((Channel) getModuleRoot().getChannel()).preloadJar(parser, Ivy.class);
                 ivyDescriptors = getModuleRoot().act(parser);
@@ -802,7 +808,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
         private final String workspace;
         private final String workspaceProper;
 
-        public IvyXmlParser(BuildListener listener, IvyModuleSet project, String workspace) {
+        public IvyXmlParser(BuildListener listener, IvyModuleSet project, String ivySettingsFile, String workspace) {
             // project cannot be shipped to the remote JVM, so all the relevant
             // properties need to be captured now.
             this.listener = listener;
@@ -810,7 +816,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             this.ivyFileExcludePattern = project.getIvyFileExcludesPattern();
             this.ivyBranch = project.getIvyBranch();
             this.workspace = workspace;
-            this.ivySettingsFile = project.getIvySettingsFile();
+            this.ivySettingsFile = ivySettingsFile;
             this.ivySettingsPropertyFiles = project.getIvySettingsPropertyFiles();
             this.workspaceProper = project.getLastBuild().getWorkspace().getRemote();
         }

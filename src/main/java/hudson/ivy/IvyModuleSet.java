@@ -78,9 +78,11 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.servlet.ServletException;
 
+import hudson.util.ListBoxModel;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.lib.configprovider.model.Config;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -119,6 +121,8 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     private String relativePathToDescriptorFromModuleRoot;
 
     private String ivySettingsFile;
+
+    private String settings;
 
     private String ivySettingsPropertyFiles;
     
@@ -243,6 +247,10 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
 
     public IvyModule getModule(String name) {
         return getItem(name);
+    }
+
+    public String getSettings() {
+        return settings;
     }
 
     @Override   // to make this accessible from IvyModuleSetBuild
@@ -633,7 +641,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
      * building or in the queue.
      */
     @Override
-    protected AbstractProject getBuildingUpstream() {
+    public AbstractProject getBuildingUpstream() {
         DependencyGraph graph = Hudson.getInstance().getDependencyGraph();
         Set<AbstractProject> tups = graph.getTransitiveUpstream(this);
         for (AbstractProject tup : tups) {
@@ -689,6 +697,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
         ivyFilePattern = Util.fixEmptyAndTrim(json.getString("ivyFilePattern"));
         ivyFileExcludesPattern = Util.fixEmptyAndTrim(json.getString("ivyFileExcludesPattern"));
         ivySettingsFile = Util.fixEmptyAndTrim(json.getString("ivySettingsFile"));
+        settings = Util.fixEmptyAndTrim(json.getString("settings"));
         ivySettingsPropertyFiles = Util.fixEmptyAndTrim(json.getString("ivySettingsPropertyFiles"));
         ivyBranch = Util.fixEmptyAndTrim(json.getString("ivyBranch"));
         relativePathToDescriptorFromModuleRoot = Util.fixEmptyAndTrim(json.getString("relativePathToDescriptorFromModuleRoot"));
@@ -820,6 +829,14 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
 
         public void setDynamicRevisionPattern(Pattern dynamicRevisionPattern) {
             this.dynamicRevisionPattern = dynamicRevisionPattern;
+        }
+
+        public ListBoxModel doFillSettingsItems() {
+            ListBoxModel lb = new ListBoxModel();
+            for (Config config : IvyConfig.provider.getAllConfigs()) {
+                lb.add(config.name, config.id);
+            }
+            return lb;
         }
 
         @Override
