@@ -373,7 +373,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                     Set<IvyModule> modulesTriggeredByUpstream = new HashSet<IvyModule>();
                     if (project.isIncrementalBuild()) {
                         Set<String> upstreamCauses = new HashSet<String>();
-                        collectTransientCauses(IvyModuleSetBuild.this, upstreamCauses);
+                        collectTransitiveCauses(IvyModuleSetBuild.this, upstreamCauses);
                         if (!upstreamCauses.isEmpty()) {
                             for (IvyModule module : project.sortedActiveModules) {
                                 for (AbstractProject upstreamDep : module.getUpstreamProjects()) {
@@ -536,7 +536,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
         }
 
         @SuppressWarnings({ "unchecked", "rawtypes" })
-        private void collectTransientCauses(Run build, Set<String> upstreamCauses) {
+        private void collectTransitiveCauses(Run build, Set<String> upstreamCauses) {
             for (Cause cause : (List<Cause>) build.getCauses()) {
                 if (cause instanceof UpstreamCause) {
                     UpstreamCause upstreamCause = (UpstreamCause) cause;
@@ -547,7 +547,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                         upstreamCauses.add(upstreamProjectName);
                         Run upstreamBuild = upstreamProject.getBuildByNumber(upstreamCause.getUpstreamBuild());
                         if (upstreamBuild != null) {
-                            collectTransientCauses(upstreamBuild, upstreamCauses);
+                            collectTransitiveCauses(upstreamBuild, upstreamCauses);
                         }
                     }
                 }
