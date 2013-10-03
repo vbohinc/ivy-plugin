@@ -540,9 +540,11 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             for (Cause cause : (List<Cause>) build.getCauses()) {
                 if (cause instanceof UpstreamCause) {
                     UpstreamCause upstreamCause = (UpstreamCause) cause;
-                    AbstractIvyProject upstreamProject = Hudson.getInstance().getItemByFullName(upstreamCause.getUpstreamProject(), AbstractIvyProject.class);
+                    String upstreamProjectName = upstreamCause.getUpstreamProject();
+                    if (upstreamCauses.contains(upstreamProjectName)) continue;
+                    AbstractIvyProject upstreamProject = Hudson.getInstance().getItemByFullName(upstreamProjectName, AbstractIvyProject.class);
                     if (upstreamProject != null && upstreamProject != getParent() && (!(upstreamProject instanceof IvyModule) || !getParent().getModules().contains(upstreamProject))) {
-                        upstreamCauses.add(upstreamCause.getUpstreamProject());
+                        upstreamCauses.add(upstreamProjectName);
                         Run upstreamBuild = upstreamProject.getBuildByNumber(upstreamCause.getUpstreamBuild());
                         if (upstreamBuild != null) {
                             collectTransientCauses(upstreamBuild, upstreamCauses);
