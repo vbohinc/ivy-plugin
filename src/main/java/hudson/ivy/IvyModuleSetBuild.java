@@ -366,14 +366,23 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             try {
                 EnvVars envVars = getEnvironment(listener);
 
+                long startTime = System.currentTimeMillis();
                 parseIvyDescriptorFiles(listener, logger, envVars);
+                if (AbstractIvyBuild.debug)
+                    logger.println("Parsed Ivy descriptors in " + (System.currentTimeMillis() - startTime) + "ms");
 
                 if (!project.isAggregatorStyleBuild()) {
                     // start module builds
                     Set<IvyModule> modulesTriggeredByUpstream = new HashSet<IvyModule>();
                     if (project.isIncrementalBuild()) {
                         Set<String> upstreamCauses = new HashSet<String>();
+                        logger.println("Determining upstream causes");
+                        startTime = System.currentTimeMillis();
                         collectTransitiveCauses(IvyModuleSetBuild.this, upstreamCauses);
+                        if (AbstractIvyBuild.debug) {
+                            logger.println("Determined upstream causes in " + (System.currentTimeMillis() - startTime) + "ms");
+                            logger.println("Upstream causes: " + upstreamCauses);
+                        }
                         if (!upstreamCauses.isEmpty()) {
                             for (IvyModule module : project.sortedActiveModules) {
                                 for (AbstractProject upstreamDep : module.getUpstreamProjects()) {
