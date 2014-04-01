@@ -661,6 +661,8 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
         @Override
         public void cleanUp(BuildListener listener) throws Exception {
+            super.cleanUp(listener);
+        
             if (project.isAggregatorStyleBuild()) {
                 performAllBuildSteps(listener, project.getPublishers(), false);
             }
