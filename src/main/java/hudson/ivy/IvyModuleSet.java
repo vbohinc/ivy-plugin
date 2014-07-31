@@ -28,6 +28,7 @@ import static hudson.model.ItemGroupMixIn.loadChildren;
 import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.Util;
 import hudson.ivy.builder.AntIvyBuilderType;
 import hudson.ivy.builder.IvyBuilderType;
@@ -40,6 +41,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.ResourceActivity;
+import hudson.model.Result;
 import hudson.model.SCMedItem;
 import hudson.model.Saveable;
 import hudson.model.TopLevelItem;
@@ -52,8 +54,8 @@ import hudson.model.Queue.Task;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.search.CollectionSearchIndex;
 import hudson.search.SearchIndexBuilder;
+import hudson.tasks.Builder;
 import hudson.tasks.BuildStep;
-import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrappers;
 import hudson.tasks.Publisher;
@@ -215,12 +217,54 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     private DescribableList<BuildWrapper,Descriptor<BuildWrapper>> buildWrappers =
         new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
 
+    /**
+     * List of active {@link Builder}s configured for this project.
+     */
+    private DescribableList<Builder,Descriptor<Builder>> prebuilders =
+            new DescribableList<Builder,Descriptor<Builder>>(this);
+
+    private DescribableList<Builder,Descriptor<Builder>> postbuilders =
+               new DescribableList<Builder,Descriptor<Builder>>(this);
+
+    private Result runPostStepsIfResult;
+
     public IvyModuleSet(String name) {
         this(Hudson.getInstance(),name);
     }
 
     public IvyModuleSet(ItemGroup parent, String name) {
         super(parent, name);
+    }
+
+    /**
+     * Builders that are run before the main Ivy execution.
+     */
+    public DescribableList<Builder,Descriptor<Builder>> getPrebuilders() {
+        return prebuilders;
+    }
+
+    /**
+     * Builders that are run after the main Ivy execution.
+     */
+    public DescribableList<Builder,Descriptor<Builder>> getPostbuilders() {
+        return postbuilders;
+    }
+
+    void addPostBuilder(Builder builder) throws IOException{
+        postbuilders.add(builder);
+    }
+
+    /**
+     * {@link #postbuilders} are run if the result is better or equal to this threshold.
+     *
+     * @return never null
+     */
+    public Result getRunPostStepsIfResult() {
+        return Functions.defaulted(runPostStepsIfResult, Result.FAILURE);
+    }
+
+    public void setRunPostStepsIfResult(Result v) {
+        this.runPostStepsIfResult = Functions.defaulted(v,Result.FAILURE);
     }
 
     public String getUrlChildPrefix() {
@@ -273,6 +317,14 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
             for (BuildWrapper step : buildWrappers) {
                     r.addAll(step.getProjectActions(this));
             }
+
+        if (prebuilders!=null)
+            for (Builder builder : prebuilders)
+                r.addAll(builder.getProjectActions(this));
+
+        if (postbuilders!=null)
+            for (Builder builder : postbuilders)
+                r.addAll(builder.getProjectActions(this));
 
         return r;
     }
@@ -543,6 +595,15 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
             buildWrappers = new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
         buildWrappers.setOwner(this);
 
+        if(prebuilders==null){
+            prebuilders = new DescribableList<Builder,Descriptor<Builder>>(this);
+        }
+        prebuilders.setOwner(this);
+        if(postbuilders==null){
+            postbuilders = new DescribableList<Builder,Descriptor<Builder>>(this);
+        }
+        postbuilders.setOwner(this);
+
         updateTransientActions();
     }
 
@@ -595,6 +656,8 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     protected void buildDependencyGraph(DependencyGraph graph) {
         publishers.buildDependencyGraph(this,graph);
         buildWrappers.buildDependencyGraph(this,graph);
+        prebuilders.buildDependencyGraph(this,graph);
+        postbuilders.buildDependencyGraph(this,graph);
     }
 
     @Override
@@ -603,7 +666,9 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
 
         activities.addAll(super.getResourceActivities());
         activities.addAll(Util.filter(publishers,ResourceActivity.class));
-        activities.addAll(Util.filter(buildWrappers,ResourceActivity.class));
+        activities.addAll(Util.filter(buildWrappers, ResourceActivity.class));
+        activities.addAll(Util.filter(prebuilders, ResourceActivity.class));
+        activities.addAll(Util.filter(postbuilders, ResourceActivity.class));
 
         return activities;
     }
@@ -712,7 +777,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
         if (incrementalBuild)
             changedModulesProperty = Util.fixEmptyAndTrim(json.getJSONObject("incrementalBuild").getString("changedModulesProperty"));
 
-        publishers.rebuild(req,json,BuildStepDescriptor.filter(Publisher.all(),this.getClass()));
+        publishers.rebuildHetero(req,json,Publisher.all(), "publisher");
         buildWrappers.rebuild(req,json,BuildWrappers.getFor(this));
 
         if(!isAggregatorStyleBuild())
@@ -721,6 +786,10 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
                 module.getBuildWrappersList().rebuild(req,json,BuildWrappers.getFor(module));
             }
         }
+
+        runPostStepsIfResult = Result.fromString(req.getParameter( "post-steps.runIfResult"));
+        prebuilders.rebuildHetero(req,json, Builder.all(), "prebuilder");
+        postbuilders.rebuildHetero(req,json, Builder.all(), "postbuilder");
     }
 
     public Class<? extends AbstractProject> getModuleClass() {

@@ -47,6 +47,7 @@ import hudson.model.Cause.UpstreamCause;
 import hudson.remoting.Callable;
 import hudson.remoting.Channel;
 import hudson.scm.ChangeLogSet;
+import hudson.tasks.BuildStep;
 import hudson.tasks.BuildTrigger;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.Publisher;
@@ -58,6 +59,7 @@ import java.io.InterruptedIOException;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.net.MalformedURLException;
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.*;
 import java.util.Map.Entry;
@@ -384,6 +386,22 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                     logger.println("Parsed Ivy descriptors in " + (System.currentTimeMillis() - startTime) + "ms");
 
                 if (!project.isAggregatorStyleBuild()) {
+
+                    // run pre build steps
+                    if(!preBuild(listener,project.getPrebuilders())
+                            || !preBuild(listener,project.getPublishers())){
+                        setResult(Result.FAILURE);
+                        return Result.FAILURE;
+                    }
+
+                    if(!build(listener,project.getPrebuilders().toList())){
+                        setResult(Result.FAILURE);
+                        return Result.FAILURE;
+                    }
+
+                    if (!preBuild(listener, project.getPublishers()))
+                        return Result.FAILURE;
+
                     // start module builds
                     Set<IvyModule> modulesTriggeredByUpstream = new HashSet<IvyModule>();
                     if (project.isIncrementalBuild()) {
@@ -465,6 +483,8 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                     }
                 } else {
                     // do builds here
+                    Result r = null;
+
                     try {
                         List<BuildWrapper> wrappers = new ArrayList<BuildWrapper>();
                         for (BuildWrapper w : project.getBuildWrappersList())
@@ -481,6 +501,19 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                             e.buildEnvVars(envVars); // #3502: too late for
                             // getEnvironment to do
                             // this
+                        }
+
+                        // run pre build steps
+                        if(!preBuild(listener,project.getPrebuilders())
+                                || !preBuild(listener,project.getPostbuilders())
+                                || !preBuild(listener,project.getPublishers())){
+                            setResult(r = Result.FAILURE);
+                            return r;
+                        }
+
+                        if(!build(listener,project.getPrebuilders().toList())){
+                            setResult(r = Result.FAILURE);
+                            return r;
                         }
 
                         if (!preBuild(listener, project.getPublishers()))
@@ -512,10 +545,24 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                         logger.println("Building project with " + ivyBuilderType.getDescriptor().getDisplayName());
                         
                         if (builder.perform(IvyModuleSetBuild.this, launcher, listener))
-                            return Result.SUCCESS;
+                            return r = Result.SUCCESS;
 
-                        return Result.FAILURE;
+                        return r = Result.FAILURE;
                     } finally {
+                        // only run post build steps if requested...
+                        if (r==null || r.isBetterOrEqualTo(project.getRunPostStepsIfResult())) {
+                            if(!build(listener,project.getPostbuilders().toList())){
+                                r = Result.FAILURE;
+                            }
+                        }
+                        else {
+                            logger.println("Post-build steps not run, build result was + " + r + ", required result is " + project.getRunPostStepsIfResult());
+                        }
+
+                        if (r != null) {
+                            setResult(r);
+                        }
+
                         // tear down in reverse order
                         boolean failed = false;
                         for (int i = buildEnvironments.size() - 1; i >= 0; i--) {
@@ -554,6 +601,16 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                 logger.println("project.getModules()=" + project.getModules());
                 throw e;
             }
+        }
+
+        private boolean build(BuildListener listener, Collection<hudson.tasks.Builder> steps) throws IOException, InterruptedException {
+            for( BuildStep bs : steps ){
+                if(!perform(bs,listener)) {
+                    LOGGER.fine(MessageFormat.format("{1} failed", bs));
+                    return false;
+                }
+            }
+            return true;
         }
 
         @SuppressWarnings({ "unchecked", "rawtypes" })

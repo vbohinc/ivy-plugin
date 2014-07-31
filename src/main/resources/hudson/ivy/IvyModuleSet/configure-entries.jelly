@@ -40,6 +40,17 @@ THE SOFTWARE.
     <p:config-upstream-pseudo-trigger />
   </p:config-trigger>
 
+  <p:config-buildWrappers />
+
+  <f:section title="${%Pre Steps}">
+    <f:block>
+      <f:hetero-list name="prebuilder" hasHeader="true"
+                     descriptors="${h.getBuilderDescriptors(it)}"
+                     items="${it.prebuilders}"
+                     addCaption="${%Add pre-build step}"/>
+    </f:block>
+  </f:section>
+
   <f:section title="${%Ivy Module Configuration}">
     <f:entry title="${%Ivy xml files}" field="ivyFilePattern">
       <f:textbox />
@@ -88,7 +99,36 @@ THE SOFTWARE.
       <p:config-customWorkspace />
     </f:advanced>
   </f:section>
-  
-  <p:config-buildWrappers />
-  <p:config-publishers />
+
+  <f:section title="${%Post Steps - cannot be used when building modules as separate jobs}">
+    <f:entry description="${%criteriaDescription}">
+      <f:radio name="post-steps.runIfResult" value="success" checked="${instance.runPostStepsIfResult.toString() =='SUCCESS'}" title="${%runIfStable}"/>
+      <st:nbsp />
+      <f:radio name="post-steps.runIfResult" value="unstable" checked="${instance.runPostStepsIfResult.toString() =='UNSTABLE'}" title="${%runIfSuccessful}"/>
+      <st:nbsp />
+      <f:radio name="post-steps.runIfResult" value="failure" checked="${instance==null || instance.runPostStepsIfResult.toString() =='FAILURE'}" title="${%runAlways}"/>
+    </f:entry>
+    <f:block>
+      <f:hetero-list name="postbuilder" hasHeader="true"
+                     descriptors="${h.getBuilderDescriptors(it)}"
+                     items="${it.postbuilders}"
+                     addCaption="${%Add post-build step}"/>
+    </f:block>
+  </f:section>
+
+  <!-- Replace this with <p:config-publishers2 /> if we upgrade Jenkins required core. -->
+  <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="${%Post-build Actions}">
+      <f:block>
+        <f:hetero-list name="publisher" hasHeader="true"
+                       descriptors="${h.getPublisherDescriptors(it)}"
+                       items="${it.publishersList}"
+                       oneEach="true"
+                       menuAlign="bl-tl"
+                       honorOrder="true"
+                       addCaption="${%Add post-build action}"/>
+      </f:block>
+    </f:section>
+  </j:jelly>
+
 </j:jelly>
