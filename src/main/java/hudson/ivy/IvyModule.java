@@ -56,6 +56,8 @@ import hudson.tasks.Publisher;
 import hudson.tasks.LogRotator;
 import hudson.util.DescribableList;
 
+import jenkins.model.BuildDiscarder;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -196,6 +198,20 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     @Override
     public boolean supportsLogRotator() {
         return false;
+    }
+
+    @Override
+    public BuildDiscarder getBuildDiscarder() {
+        return getParent().getBuildDiscarder();
+    }
+
+    /**
+     * @deprecated Not allowed to configure log rotation per module.
+     */
+    @Deprecated
+    @Override
+    public void setBuildDiscarder(BuildDiscarder bd) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
