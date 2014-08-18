@@ -405,8 +405,18 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
         }
     }
 
-    private class RunnerImpl extends AbstractRunner {
+    private class RunnerImpl extends AbstractBuildExecution {
         private List<Publisher> reporters;
+
+        @Override
+        public IvyBuild getBuild() {
+            return (IvyBuild) super.getBuild();
+        }
+
+        @Override
+        public IvyModule getProject() {
+            return (IvyModule)super.getProject();
+        }
 
         @Override
         protected Lease decideWorkspace(Node n, WorkspaceList wsl) throws InterruptedException, IOException {

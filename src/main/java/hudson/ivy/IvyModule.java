@@ -169,16 +169,9 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
             
             
             for (BuildWrapper buildWrapper : parentWrappers) {
-                try
-                {
-                    IvyClonerWrapper cloner = new IvyClonerWrapper();
-                    cloner.dontClone(Descriptor.class);
-                    getBuildWrappersList().add(cloner.deepClone(buildWrapper));
-                }
-                catch(IOException e)
-                {
-                    throw new RuntimeException("Could not copy build wrappers", e);
-                }
+                IvyClonerWrapper cloner = new IvyClonerWrapper();
+                cloner.dontClone(Descriptor.class);
+                getBuildWrappersList().add(cloner.deepClone(buildWrapper));
             }
         }
     }
@@ -304,11 +297,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         }
 
         DescribableList<Publisher, Descriptor<Publisher>> publishersList = new DescribableList<Publisher, Descriptor<Publisher>>(Saveable.NOOP);
-        try {
-            publishersList.addAll(createModulePublishers());
-        } catch (IOException e) {
-            LOGGER.warning("Failed to load module publisher list");
-        }
+        publishersList.addAll(createModulePublishers());
         return publishersList;
     }
 
