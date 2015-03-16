@@ -201,20 +201,6 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     }
 
     @Override
-    public BuildDiscarder getBuildDiscarder() {
-        return getParent().getBuildDiscarder();
-    }
-
-    /**
-     * @deprecated Not allowed to configure log rotation per module.
-     */
-    @Deprecated
-    @Override
-    public void setBuildDiscarder(BuildDiscarder bd) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public boolean isBuildable() {
         // not buildable if the parent project is disabled
         return super.isBuildable() && getParent().isBuildable();

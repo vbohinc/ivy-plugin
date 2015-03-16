@@ -215,6 +215,23 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
     }
 
     @Override
+    public synchronized void delete() throws IOException {
+        super.delete();
+        // Delete all contained module builds too
+        for (List<IvyBuild> list : getModuleBuilds().values())
+            for (IvyBuild build : list)
+                build.delete();
+    }
+
+    @Override
+    public synchronized void deleteArtifacts() throws IOException {
+        super.deleteArtifacts();
+        for (List<IvyBuild> list : getModuleBuilds().values())
+            for (IvyBuild build : list)
+                build.deleteArtifacts();
+    }
+
+    @Override
     public Object getDynamic(String token, StaplerRequest req, StaplerResponse rsp) {
         // map corresponding module build under this object
         if (token.indexOf('$') > 0) {
