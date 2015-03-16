@@ -460,8 +460,9 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                             // or if the previous build of this module
                             // failed or was unstable.
                             boolean triggerBuild = false;
-                            if (module.getLastBuild() == null || !getChangeSetFor(module).isEmpty()
-                                    || module.getLastBuild().getResult().isWorseThan(Result.SUCCESS)
+                            final IvyBuild previousBuiltBuild = module.getPreviousBuiltBuild();
+                            if (previousBuiltBuild == null || !getChangeSetFor(module).isEmpty()
+                                    || previousBuiltBuild.getResult().isWorseThan(Result.SUCCESS)
                                     || modulesTriggeredByUpstream.contains(module)) {
                                 triggerBuild = true;
                                 List<AbstractProject> ups = module.getUpstreamProjects();

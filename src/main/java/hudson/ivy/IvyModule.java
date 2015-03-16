@@ -221,6 +221,17 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     }
 
     /**
+     * Returns the last build that was actually built - i.e., skipping any with Result.NOT_BUILT
+     */
+    public IvyBuild getPreviousBuiltBuild() {
+        IvyBuild r = getLastBuild();
+        // in certain situations (aborted builds) r.getResult() can still be null, although it should theoretically never happen
+        while (r != null && (r.getResult() == null || r.getResult() == Result.NOT_BUILT))
+            r = r.getPreviousBuild();
+        return r;
+    }
+
+    /**
      * Called to update the module with the new ivy.xml information.
      * <p>
      * This method is invoked on {@link IvyModule} that has the matching
