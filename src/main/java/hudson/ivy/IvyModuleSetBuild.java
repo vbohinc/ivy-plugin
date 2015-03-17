@@ -108,6 +108,9 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
      */
     /* package */List<IvyReporter> projectActionReporters;
 
+    private transient Object notifyModuleBuildLock = new Object();
+    private transient Result effectiveResult;
+
     /**
      * Absolute path to ivy settings file on slave
      */
@@ -119,6 +122,12 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
     public IvyModuleSetBuild(IvyModuleSet project, File buildDir) throws IOException {
         super(project, buildDir);
+    }
+
+    @Override
+    protected void onLoad() {
+        super.onLoad();
+        notifyModuleBuildLock = new Object();
     }
 
     /**
@@ -140,11 +149,23 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
     /**
      * Displays the combined status of all modules.
      * <p>
-     * More precisely, this picks up the status of this build itself, plus all
-     * the latest builds of the modules that belongs to this build.
+     * More precisely, this picks up the status of this build itself,
+     * plus all the latest builds of the modules that belongs to this build.
      */
     @Override
     public Result getResult() {
+        if (isBuilding()) {
+            return computeResult();
+        }
+        synchronized (notifyModuleBuildLock) {
+            if (effectiveResult == null) {
+                effectiveResult = computeResult();
+            }
+            return effectiveResult;
+        }
+    }
+
+    private Result computeResult() {
         Result r = super.getResult();
 
         for (IvyBuild b : getModuleLastBuilds().values()) {
@@ -329,7 +350,10 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
             // actions need to be replaced atomically especially
             // given that two builds might complete simultaneously.
-            synchronized (this) {
+            // use a separate lock object since this synchronized block calls into plugins,
+            // which in turn can access other IvyModuleSetBuild instances, which will result in a dead lock.
+            synchronized(notifyModuleBuildLock) {
+                effectiveResult = null;
                 boolean modified = false;
 
                 List<Action> actions = getActions();
