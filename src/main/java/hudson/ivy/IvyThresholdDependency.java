@@ -21,6 +21,7 @@ package hudson.ivy;
 import java.util.List;
 import java.util.Set;
 
+import jenkins.model.Jenkins;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.DependencyGraph;
@@ -55,7 +56,15 @@ public class IvyThresholdDependency extends IvyDependency {
         AbstractProject<?,?> down = getDownstreamProject();
         if (AbstractIvyBuild.debug)
             listener.getLogger().println("Considering whether to trigger " + down + " or not");
-        
+
+        // Check to see if any of its upstream dependencies are already building or in queue.
+        AbstractIvyProject<?,?> parent = (AbstractIvyProject<?,?>) getUpstreamProject();
+        if (areUpstreamsBuilding(down, parent)) {
+            if(AbstractIvyBuild.debug)
+                listener.getLogger().println(" -> No, because downstream has dependencies already building or in queue");
+            return false;
+        }
+
         if (inDownstreamProjects(down)) {
             if (AbstractIvyBuild.debug)
                 listener.getLogger().println(" -> No, because downstream has dependencies in the downstream projects list");
@@ -71,7 +80,36 @@ public class IvyThresholdDependency extends IvyDependency {
         }
         return true;
     }
-    
+
+    /**
+     * Determines whether any of the upstream project are either
+     * building or in the queue.
+     *
+     * This means eventually there will be an automatic triggering of
+     * the given project (provided that all builds went smoothly.)
+     *
+     * @param downstreamProject
+     *      The AbstractProject we want to build.
+     * @param excludeProject
+     *      An AbstractProject to exclude - if we see this in the transitive
+     *      dependencies, we're not going to bother checking to see if it's
+     *      building. For example, pass the current parent project to be sure
+     *      that it will be ignored when looking for building dependencies.
+     * @return
+     *      True if any upstream projects are building or in queue, false otherwise.
+     */
+    @SuppressWarnings("rawtypes")
+    private boolean areUpstreamsBuilding(AbstractProject<?,?> downstreamProject,
+            AbstractProject<?,?> excludeProject) {
+        DependencyGraph graph = Jenkins.getInstance().getDependencyGraph();
+        Set<AbstractProject> tups = graph.getTransitiveUpstream(downstreamProject);
+        for (AbstractProject tup : tups) {
+            if(tup!=excludeProject && (tup.isBuilding() || tup.isInQueue()))
+                return true;
+        }
+        return false;
+    }
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private boolean inDownstreamProjects(AbstractProject<?,?> downstreamProject) {
         DependencyGraph graph = Hudson.getInstance().getDependencyGraph();
