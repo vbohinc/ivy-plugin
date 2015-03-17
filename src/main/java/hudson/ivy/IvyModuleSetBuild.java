@@ -77,6 +77,8 @@ import org.apache.ivy.plugins.parser.ModuleDescriptorParserRegistry;
 import org.apache.ivy.util.Message;
 import org.apache.tools.ant.BuildEvent;
 import org.apache.tools.ant.types.FileSet;
+import org.apache.tools.ant.types.selectors.TokenizedPath;
+import org.apache.tools.ant.types.selectors.TokenizedPattern;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.configfiles.common.CleanTempFilesAction;
 import org.kohsuke.stapler.StaplerRequest;
@@ -402,6 +404,13 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                 if (AbstractIvyBuild.debug)
                     logger.println("Parsed Ivy descriptors in " + (System.currentTimeMillis() - startTime) + "ms");
 
+                boolean doFullBuildRegardless = false;
+                if (project.isIncrementalBuild()
+                        && project.getFullBuildChangedFilesPattern() != null
+                        && !IvyModuleSetBuild.this.getChangeSet().isEmptySet()) {
+                    doFullBuildRegardless = changesMatchFullBuildChangedFilesPattern();
+                }
+
                 if (!project.isAggregatorStyleBuild()) {
 
                     // run pre build steps
@@ -421,7 +430,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
                     // start module builds
                     Set<IvyModule> modulesTriggeredByUpstream = new HashSet<IvyModule>();
-                    if (project.isIncrementalBuild()) {
+                    if (project.isIncrementalBuild() && !doFullBuildRegardless) {
                         Set<String> upstreamCauses = new HashSet<String>();
                         logger.println("Determining upstream causes");
                         startTime = System.currentTimeMillis();
@@ -443,10 +452,10 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                             }
                         }
                     }
-                    
+
                     Set<IvyModule> triggeredModules = new HashSet<IvyModule>();
                     List<ParametersAction> actions = IvyModuleSetBuild.this.getActions(ParametersAction.class);
-                    if (!project.isIncrementalBuild() || (IvyModuleSetBuild.this.getChangeSet().isEmptySet() && modulesTriggeredByUpstream.isEmpty())) {
+                    if (!project.isIncrementalBuild() || doFullBuildRegardless || (IvyModuleSetBuild.this.getChangeSet().isEmptySet() && modulesTriggeredByUpstream.isEmpty())) {
                         for (IvyModule module : project.sortedActiveModules) {
                             // Don't trigger builds if we've already triggered
                             // one
@@ -538,12 +547,12 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                             return Result.FAILURE;
 
                         List<String> changedModules = new ArrayList<String>();
-                        for (IvyModule m : project.sortedActiveModules) {
-                            // Check if incrementalBuild is selected and that
-                            // there are changes -
-                            // we act as if incrementalBuild is not set if there
-                            // are no changes.
-                            if (!IvyModuleSetBuild.this.getChangeSet().isEmptySet() && project.isIncrementalBuild()) {
+                        // Check if incrementalBuild is selected and that
+                        // there are changes -
+                        // we act as if incrementalBuild is not set if there
+                        // are no changes.
+                        if (project.isIncrementalBuild() && !IvyModuleSetBuild.this.getChangeSet().isEmptySet() && !doFullBuildRegardless) {
+                            for (IvyModule m : project.sortedActiveModules) {
                                 // If there are changes for this module, add it.
                                 if (!getChangeSetFor(m).isEmpty()) {
                                     changedModules.add(m.getModuleName().name);
@@ -552,16 +561,16 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                         }
 
                         Properties additionalProperties = null;
-                        if (project.isAggregatorStyleBuild() && project.isIncrementalBuild()) {
+                        if (project.isIncrementalBuild()) {
                             additionalProperties = new Properties();
                             additionalProperties.put(project.getChangedModulesProperty() == null ? "hudson.ivy.changedModules" : project
                                     .getChangedModulesProperty(), StringUtils.join(changedModules, ','));
-                        }     
-                        
+                        }
+
                         IvyBuilderType ivyBuilderType = project.getIvyBuilderType();
                         hudson.tasks.Builder builder = ivyBuilderType.getBuilder(additionalProperties, null, buildEnvironments);
                         logger.println("Building project with " + ivyBuilderType.getDescriptor().getDisplayName());
-                        
+
                         if (builder.perform(IvyModuleSetBuild.this, launcher, listener))
                             return r = Result.SUCCESS;
 
@@ -1020,6 +1029,26 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
     @Override
     public IvyModuleSet getParent() {// don't know why, but javac wants this
         return super.getParent();
+    }
+
+    private boolean changesMatchFullBuildChangedFilesPattern() {
+        final StringTokenizer tokens = new StringTokenizer(project.getFullBuildChangedFilesPattern(), ",");
+        final List<TokenizedPattern> patterns = new ArrayList<TokenizedPattern>();
+        while (tokens.hasMoreTokens()) {
+            String token = tokens.nextToken().trim();
+            patterns.add(new TokenizedPattern(token));
+        }
+        for (ChangeLogSet.Entry e : IvyModuleSetBuild.this.getChangeSet()) {
+            for (String path : e.getAffectedPaths()) {
+                TokenizedPath tokenizedPath = new TokenizedPath(path);
+                for (TokenizedPattern pattern : patterns) {
+                    if (pattern.matchPath(tokenizedPath, true)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static final class IvyPreloadTask implements Callable<Boolean, IOException> {

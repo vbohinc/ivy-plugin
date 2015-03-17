@@ -91,6 +91,9 @@ THE SOFTWARE.
         <f:entry title="${%Changed modules property}" field="changedModulesProperty">
           <f:textbox />
         </f:entry>
+        <f:entry title="${%Perform full build on change of these files}" field="fullBuildChangedFilesPattern">
+          <f:textbox />
+        </f:entry>
       </f:optionalBlock>
       <f:optionalBlock title="${%Build modules as separate jobs}" name="perModuleBuild" checked="${!it.aggregatorStyleBuild}" help="/plugin/ivy/aggregator.html">
       </f:optionalBlock>
