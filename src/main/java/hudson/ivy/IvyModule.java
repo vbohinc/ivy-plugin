@@ -55,7 +55,6 @@ import hudson.tasks.BuildWrapper;
 import hudson.tasks.Publisher;
 import hudson.tasks.LogRotator;
 import hudson.util.DescribableList;
-
 import jenkins.model.BuildDiscarder;
 
 import java.io.IOException;
@@ -204,6 +203,22 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     public boolean isBuildable() {
         // not buildable if the parent project is disabled
         return super.isBuildable() && getParent().isBuildable();
+    }
+
+    /**
+     * Computes the list of {@link IvyModule}s that are 'under' this module filesystem-wise. The list doens't include
+     * this module itself.
+     *
+     * <p>
+     * Note that this doesn't necessary has anything to do with the module inheritance structure or parent/child
+     * relationship of the module.
+     */
+    public List<IvyModule> getSubsidiaries() {
+        List<IvyModule> r = new ArrayList<IvyModule>();
+        for (IvyModule mm : getParent().getModules())
+            if(mm!=this && mm.getRelativePathToModuleRoot().startsWith(getRelativePathToModuleRoot()))
+                r.add(mm);
+        return r;
     }
 
     /**

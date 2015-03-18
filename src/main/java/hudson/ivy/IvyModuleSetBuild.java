@@ -66,6 +66,7 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ivy.Ivy;
 import org.apache.ivy.Ivy.IvyCallback;
@@ -187,12 +188,36 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
      */
     /* package */List<ChangeLogSet.Entry> getChangeSetFor(final IvyModule mod) {
         return new ArrayList<ChangeLogSet.Entry>() {
+            private static final long serialVersionUID = 930743327206695810L;
             {
+                // modules that are under 'mod'. lazily computed
+                List<IvyModule> subsidiaries = null;
+
                 for (ChangeLogSet.Entry e : getChangeSet()) {
                     if (isDescendantOf(e, mod)) {
-                        add(e);
+                        if(subsidiaries==null)
+                            subsidiaries = mod.getSubsidiaries();
+
+                        // make sure at least one change belongs to this module proper,
+                        // and not its subsidiary module
+                        if (notInSubsidiary(subsidiaries, e))
+                            add(e);
                     }
                 }
+            }
+
+            private boolean notInSubsidiary(List<IvyModule> subsidiaries, ChangeLogSet.Entry e) {
+                for (String path : e.getAffectedPaths())
+                    if(isDescendantOf(path, mod) && !belongsToSubsidiary(subsidiaries, path))
+                        return true;
+                return false;
+            }
+
+            private boolean belongsToSubsidiary(List<IvyModule> subsidiaries, String path) {
+                for (IvyModule sub : subsidiaries)
+                    if (isDescendantOf(path, sub))
+                        return true;
+                return false;
             }
 
             /**
@@ -200,10 +225,15 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
              * descendants?
              */
             private boolean isDescendantOf(ChangeLogSet.Entry e, IvyModule mod) {
-                for (String path : e.getAffectedPaths())
-                    if (path != null && path.startsWith(mod.getRelativePathToModuleRoot()))
+                for (String path : e.getAffectedPaths()) {
+                    if (isDescendantOf(path, mod))
                         return true;
+                }
                 return false;
+            }
+
+            private boolean isDescendantOf(String path, IvyModule mod) {
+                return FilenameUtils.separatorsToUnix(path).startsWith(normalizePath(mod.getRelativePathToModuleRoot()));
             }
         };
     }
@@ -235,6 +265,28 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
         }
 
         return r;
+    }
+
+    private static String normalizePath(String relPath) {
+        relPath = StringUtils.trimToEmpty( relPath );
+        if (StringUtils.isEmpty( relPath )) {
+            LOGGER.config("No need to normalize an empty path.");
+        } else {
+            if(FilenameUtils.indexOfLastSeparator( relPath ) == -1) {
+                LOGGER.config("No need to normalize "+relPath);
+            } else {
+                String tmp = FilenameUtils.normalize( relPath );
+                if(tmp == null) {
+                    LOGGER.config("Path " + relPath + " can not be normalized (parent dir is unknown). Keeping as is.");
+                } else {
+                    LOGGER.config("Normalized path " + relPath + " to "+tmp);
+                    relPath = tmp;
+                }
+                relPath = FilenameUtils.separatorsToUnix( relPath );
+            }
+        }
+        LOGGER.fine("Returning path " + relPath);
+        return relPath;
     }
 
     @Override
