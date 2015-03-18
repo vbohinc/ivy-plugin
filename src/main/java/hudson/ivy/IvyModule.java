@@ -33,6 +33,7 @@ import hudson.model.DependencyGraph;
 import hudson.model.DependencyGraph.Dependency;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.BuildableItemWithBuildWrappers;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Resource;
@@ -82,10 +83,11 @@ import org.kohsuke.stapler.export.Exported;
  *
  * @author Timothy Bingaman
  */
-public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> implements Saveable {
+public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> implements Saveable, BuildableItemWithBuildWrappers {
     private static final String IVY_XML_PATH = "ivy.xml";
 
     private DescribableList<Publisher, Descriptor<Publisher>> publishers = new DescribableList<Publisher, Descriptor<Publisher>>(this);
+    private DescribableList<BuildWrapper,Descriptor<BuildWrapper>> buildWrappers = new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
 
     /**
      * Name taken from {@link ModuleRevisionId#getName()}.
@@ -136,18 +138,6 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
      */
     private String relativePathToDescriptorFromModuleRoot;
 
-    private DescribableList<BuildWrapper,Descriptor<BuildWrapper>> buildWrappers =
-        new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
-    
-    public DescribableList<BuildWrapper, Descriptor<BuildWrapper>> getBuildWrappersList() {
-        if(buildWrappers == null)
-        {
-            buildWrappers =
-                new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
-        }
-        return buildWrappers;
-    }
-    
     /**
      * List of modules that this module declares direct dependencies on.
      */
@@ -158,25 +148,8 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         super(parent, moduleInfo.name.toFileSystemName());
         reconfigure(moduleInfo);
         updateNextBuildNumber(firstBuildNumber);
-        copyParentBuildWrappers(parent);
     }
 
-    private void copyParentBuildWrappers(IvyModuleSet parent)
-    {
-        if(!parent.isAggregatorStyleBuild())
-        {
-            List<BuildWrapper> parentWrappers = parent.getBuildWrappersList().getAll(BuildWrapper.class);
-        
-            
-            
-            for (BuildWrapper buildWrapper : parentWrappers) {
-                IvyClonerWrapper cloner = new IvyClonerWrapper();
-                cloner.dontClone(Descriptor.class);
-                getBuildWrappersList().add(cloner.deepClone(buildWrapper));
-            }
-        }
-    }
-    
     /**
      * {@link IvyModule} follows the same log rotation schedule as its parent.
      */
@@ -259,6 +232,9 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         if (publishers == null)
             publishers = new DescribableList<Publisher, Descriptor<Publisher>>(this);
         publishers.setOwner(this);
+        if (buildWrappers == null)
+            buildWrappers = new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(this);
+        buildWrappers.setOwner(this);
         if (dependencies == null) {
             dependencies = Collections.emptySet();
         }
@@ -327,6 +303,16 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         DescribableList<Publisher, Descriptor<Publisher>> publishersList = new DescribableList<Publisher, Descriptor<Publisher>>(Saveable.NOOP);
         publishersList.addAll(createModulePublishers());
         return publishersList;
+    }
+
+    public DescribableList<BuildWrapper, Descriptor<BuildWrapper>> getBuildWrappersList() {
+        if (getParent().isAggregatorStyleBuild()) {
+            return buildWrappers;
+        }
+
+        DescribableList<BuildWrapper, Descriptor<BuildWrapper>> buildWrappersList = new DescribableList<BuildWrapper, Descriptor<BuildWrapper>>(Saveable.NOOP);
+        buildWrappersList.addAll(createModuleBuildWrappers());
+        return buildWrappersList;
     }
 
     @Override
@@ -590,6 +576,13 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         return publishers;
     }
 
+    /**
+     * List of active {@link BuildWrapper}s configured for this module.
+     */
+    public DescribableList<BuildWrapper, Descriptor<BuildWrapper>> getBuildWrappers() {
+        return buildWrappers;
+    }
+
     @Override
     protected void submit(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException, FormException {
         super.submit(req, rsp);
@@ -623,6 +616,20 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         return modulePublisherList;
     }
 
+    /**
+     * Creates a list of {@link Publisher}s to be used for a build of this project.
+     */
+    protected final List<BuildWrapper> createModuleBuildWrappers() {
+        List<BuildWrapper> moduleBuildWrapperList = new ArrayList<BuildWrapper>();
+
+        getBuildWrappers().addAllTo(moduleBuildWrapperList);
+        if (!getParent().isAggregatorStyleBuild()) {
+            getParent().getBuildWrappersList().addAllTo(moduleBuildWrapperList);
+        }
+
+        return moduleBuildWrapperList;
+    }
+
     @Override
     public boolean isUseUpstreamParameters() {
         return getParent().isUseUpstreamParameters();
@@ -631,6 +638,10 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     @Override
     public int getQuietPeriod() {
         return getParent().getQuietPeriod();
+    }
+
+    public AbstractProject<?,?> asProject() {
+        return this;
     }
 
     private static final Logger LOGGER = Logger.getLogger(IvyModule.class.getName());

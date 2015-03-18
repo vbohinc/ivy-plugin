@@ -571,18 +571,6 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     public boolean isFingerprintConfigured() {
         return true;
     }
-    
-    @Override
-    public synchronized void save() throws IOException {
-        super.save();
-        
-        if(!isAggregatorStyleBuild())
-        {
-            for (IvyModule module : getModules()) {
-                module.save();
-            }
-        }
-    }
 
     @Override
     public void onLoad(ItemGroup<? extends Item> parent, String name) throws IOException {
@@ -787,13 +775,6 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
 
         publishers.rebuildHetero(req,json,Publisher.all(), "publisher");
         buildWrappers.rebuild(req,json,BuildWrappers.getFor(this));
-
-        if(!isAggregatorStyleBuild())
-        {
-            for (IvyModule module : getModules()) {
-                module.getBuildWrappersList().rebuild(req,json,BuildWrappers.getFor(module));
-            }
-        }
 
         runPostStepsIfResult = Result.fromString(req.getParameter( "post-steps.runIfResult"));
         prebuilders.rebuildHetero(req,json, Builder.all(), "prebuilder");
