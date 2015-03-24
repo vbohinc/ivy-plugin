@@ -57,19 +57,6 @@ public class IvyThresholdDependency extends IvyDependency {
         if (AbstractIvyBuild.debug)
             listener.getLogger().println("Considering whether to trigger " + down + " or not");
 
-        // Check to see if any of its upstream dependencies are already building or in queue.
-        // If the downstream project is an IvyModuleSet with incremental build enabled though,
-        // skip this check as it will break the way IvyModuleSet calculates which modules
-        // to build based on which modules triggered it
-        if (!(down instanceof IvyModuleSet && ((IvyModuleSet) down).isIncrementalBuild())) {
-            AbstractIvyProject<?, ?> parent = (AbstractIvyProject<?, ?>) getUpstreamProject();
-            if (areUpstreamsBuilding(down, parent)) {
-                if (AbstractIvyBuild.debug)
-                    listener.getLogger().println(" -> No, because downstream has dependencies already building or in queue");
-                return false;
-            }
-        }
-
         if (inDownstreamProjects(down)) {
             if (AbstractIvyBuild.debug)
                 listener.getLogger().println(" -> No, because downstream has dependencies in the downstream projects list");
