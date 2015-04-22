@@ -769,6 +769,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                     } else {// this looks like a new module
                         logger.println(Messages.IvyModuleSetBuild_DiscoveredModule(ivyDescriptor.name, ivyDescriptor.displayName));
                         mm = new IvyModule(project, ivyDescriptor, getNumber());
+                        mm.onCreatedFromScratch();
                         modules.put(mm.getModuleName(), mm);
                     }
                     sortedModules.add(mm);
