@@ -716,19 +716,26 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             return true;
         }
 
-        @SuppressWarnings({ "unchecked", "rawtypes" })
+        @SuppressWarnings({ "rawtypes" })
         private void collectTransitiveCauses(Run build, Set<String> upstreamCauses) {
+            Set<String> traversed = new HashSet<String>();
+            collectTransitiveCausesInternal(build, upstreamCauses, traversed);
+        }
+
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+        private void collectTransitiveCausesInternal(Run build, Set<String> upstreamCauses, Set<String> traversed) {
             for (Cause cause : (List<Cause>) build.getCauses()) {
                 if (cause instanceof UpstreamCause) {
                     UpstreamCause upstreamCause = (UpstreamCause) cause;
                     String upstreamProjectName = upstreamCause.getUpstreamProject();
-                    if (upstreamCauses.contains(upstreamProjectName)) continue;
+                    if (traversed.contains(upstreamCause.getUpstreamUrl() + upstreamCause.getUpstreamBuild())) continue;
+                    traversed.add(upstreamCause.getUpstreamUrl() + upstreamCause.getUpstreamBuild());
                     AbstractIvyProject upstreamProject = Hudson.getInstance().getItemByFullName(upstreamProjectName, AbstractIvyProject.class);
                     if (upstreamProject != null && upstreamProject != getParent() && (!(upstreamProject instanceof IvyModule) || !getParent().getModules().contains(upstreamProject))) {
                         upstreamCauses.add(upstreamProjectName);
                         Run upstreamBuild = upstreamProject.getBuildByNumber(upstreamCause.getUpstreamBuild());
                         if (upstreamBuild != null) {
-                            collectTransitiveCauses(upstreamBuild, upstreamCauses);
+                            collectTransitiveCausesInternal(upstreamBuild, upstreamCauses, traversed);
                         }
                     }
                 }
