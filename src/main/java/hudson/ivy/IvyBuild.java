@@ -27,15 +27,7 @@ import static hudson.model.Result.FAILURE;
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
-import hudson.model.Environment;
-import hudson.model.EnvironmentContributingAction;
-import hudson.model.Executor;
-import hudson.model.Node;
-import hudson.model.ParametersAction;
-import hudson.model.Result;
-import hudson.model.Run;
+import hudson.model.*;
 import hudson.remoting.Channel;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.ChangeLogSet.Entry;
@@ -54,7 +46,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import hudson.util.LogTaskListener;
 import org.apache.tools.ant.BuildEvent;
 import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.Ancestor;
@@ -72,6 +67,8 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
      * there's none.
      */
     /* package */List<IvyReporter> projectActionReporters;
+
+    private static final Logger LOGGER = Logger.getLogger(IvyBuild.class.getName());
 
     public IvyBuild(IvyModule job) throws IOException {
         super(job);
@@ -516,6 +513,35 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
             env.put("IVY_MODULE_NAME", ((IvyModule) buildParent).getModuleName().name);
             env.put("IVY_MODULE_ORGANISATION", ((IvyModule) buildParent).getModuleName().organisation);
             env.put("PARENT_WORKSPACE", ((IvyBuild) build).getModuleSetBuild().getWorkspace().getRemote());
+            addParentBuildEnvironment(build, env);
+        }
+
+        private void addParentBuildEnvironment(AbstractBuild<?, ?> build, EnvVars env) {
+
+            IvyModuleSet ivyModuleSet = ((IvyModule) build.getParent()).getParent();
+            IvyModuleSetBuild ivyModuleSetBuild = ivyModuleSet.getBuildByNumber(build.number);
+
+            //Build Parameters
+            List<ParametersAction> parametersActions = ivyModuleSetBuild.getActions(ParametersAction.class);
+            for (ParametersAction parametersAction : parametersActions) {
+                for (ParameterValue parameterValue : parametersAction.getParameters()) {
+                    env.put(parameterValue.getName(), parameterValue.getValue().toString());
+                }
+            }
+
+            //Git Environment Variables
+            try {
+                EnvVars environment = ivyModuleSetBuild.getEnvironment(new LogTaskListener(LOGGER, Level.INFO));
+                for (Map.Entry<String, String> entry : environment.entrySet()) {
+                    if (entry.getKey().startsWith("GIT_")) {
+                        env.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
