@@ -41,10 +41,10 @@ public class FilteredChangeLogSet extends ChangeLogSet<Entry> {
     public final ChangeLogSet<? extends Entry> core;
 
     /*package*/ FilteredChangeLogSet(IvyBuild build) {
-        super(build);
+        super(build, build.getParent().getScm().getEffectiveBrowser());
         IvyModuleSetBuild parentBuild = build.getParentBuild();
         if(parentBuild==null) {
-            core = ChangeLogSet.createEmpty(build);
+            core = ChangeLogSet.createEmpty(getRun());
             master = Collections.emptyList();
         } else {
             core = parentBuild.getChangeSet();

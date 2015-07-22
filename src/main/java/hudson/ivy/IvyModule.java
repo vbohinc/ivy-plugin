@@ -38,17 +38,11 @@ import hudson.model.ItemGroup;
 import hudson.model.Resource;
 import hudson.model.Result;
 import hudson.model.Saveable;
-import hudson.model.Hudson;
 import hudson.model.JDK;
 import hudson.model.Job;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.ParametersAction;
-import hudson.model.Resource;
-import hudson.model.Result;
-import hudson.model.Saveable;
-import hudson.model.DependencyGraph.Dependency;
-import hudson.model.Descriptor.FormException;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildWrapper;
@@ -71,6 +65,7 @@ import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ivy.core.module.id.ModuleRevisionId;
 import org.kohsuke.stapler.StaplerRequest;
@@ -506,7 +501,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
      * Returns all Ivy modules in this Jenkins instance.
      */
     protected Collection<IvyModule> getAllIvyModules() {
-        return Hudson.getInstance().getAllItems(IvyModule.class);
+        return Jenkins.getInstance().getAllItems(IvyModule.class);
     }
     
     private boolean hasDependency(DependencyGraph graph, AbstractProject upstream, AbstractProject downstream) {
@@ -532,7 +527,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
             return cob;
 
         if (!getParent().isAggregatorStyleBuild()) {
-            DependencyGraph graph = Hudson.getInstance().getDependencyGraph();
+            DependencyGraph graph = Jenkins.getInstance().getDependencyGraph();
             for (AbstractProject tup : graph.getTransitiveUpstream(this)) {
                 if(getParent() == tup.getParent() && (tup.isBuilding() || tup.isInQueue()))
                         return new BecauseOfUpstreamModuleBuildInProgress(tup);
@@ -600,7 +595,7 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
         publishers.rebuild(req,req.getSubmittedForm(),BuildStepDescriptor.filter(Publisher.all(),this.getClass()));
 
         // dependency setting might have been changed by the user, so rebuild.
-        Hudson.getInstance().rebuildDependencyGraph();
+        Jenkins.getInstance().rebuildDependencyGraph();
     }
 
     @Override

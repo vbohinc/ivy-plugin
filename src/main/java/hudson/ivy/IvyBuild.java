@@ -28,7 +28,6 @@ import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.model.Environment;
 import hudson.model.EnvironmentContributingAction;
@@ -42,7 +41,6 @@ import hudson.scm.ChangeLogSet;
 import hudson.scm.ChangeLogSet.Entry;
 import hudson.slaves.WorkspaceList;
 import hudson.slaves.WorkspaceList.Lease;
-import hudson.tasks.BuildTrigger;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.Publisher;
 
@@ -58,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.tools.ant.BuildEvent;
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.Ancestor;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest;
@@ -165,7 +164,7 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
     @Override
     public void run() {
         addAction(new IvyModuleEnvironmentAction());
-        run(new RunnerImpl());
+        execute(new RunnerImpl());
 
         getProject().updateTransientActions();
 
@@ -196,6 +195,9 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
             this.buildProxy = new FilterImpl(buildProxy);
             this.reporters = reporters;
         }
+
+        @Override
+        public void checkRoles(RoleChecker checker) throws SecurityException {}
 
         private class FilterImpl extends IvyBuildProxy.Filter<IvyBuildProxy> implements Serializable {
             public FilterImpl(IvyBuildProxy buildProxy) {

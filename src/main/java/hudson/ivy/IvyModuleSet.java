@@ -47,7 +47,6 @@ import hudson.model.Saveable;
 import hudson.model.TopLevelItem;
 import hudson.model.AbstractProject;
 import hudson.model.Executor;
-import hudson.model.Hudson;
 import hudson.model.Job;
 import hudson.model.Queue;
 import hudson.model.Queue.Task;
@@ -81,6 +80,7 @@ import java.util.regex.PatternSyntaxException;
 import javax.servlet.ServletException;
 
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
@@ -231,7 +231,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     private Result runPostStepsIfResult;
 
     public IvyModuleSet(String name) {
-        this(Hudson.getInstance(),name);
+        this(Jenkins.getInstance(),name);
     }
 
     public IvyModuleSet(ItemGroup parent, String name) {
@@ -335,7 +335,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     protected void addTransientActionsFromBuild(IvyModuleSetBuild build, List<Action> collection, Set<Class> added) {
         if(build==null)    return;
 
-        for (Action a : build.getActions())
+        for (Action a : build.getAllActions())
             if(a instanceof IvyAggregatedReport)
                 if(added.add(a.getClass()))
                     collection.add(((IvyAggregatedReport)a).getProjectAction(this));
@@ -713,7 +713,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
      */
     @Override
     public AbstractProject getBuildingUpstream() {
-        DependencyGraph graph = Hudson.getInstance().getDependencyGraph();
+        DependencyGraph graph = Jenkins.getInstance().getDependencyGraph();
         Set<AbstractProject> tups = graph.getTransitiveUpstream(this);
         for (AbstractProject tup : tups) {
             if(tup!=this) {
@@ -743,7 +743,7 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
      */
     public List<Queue.Item> getQueueItems() {
         List<Queue.Item> r = new ArrayList<hudson.model.Queue.Item>();
-        for( Queue.Item item : Hudson.getInstance().getQueue().getItems() ) {
+        for( Queue.Item item : Jenkins.getInstance().getQueue().getItems() ) {
             Task t = item.task;
             if((t instanceof IvyModule && ((IvyModule)t).getParent()==this) || t ==this)
                 r.add(item);
@@ -864,9 +864,9 @@ public final class IvyModuleSet extends AbstractIvyProject<IvyModuleSet,IvyModul
     @SuppressWarnings("unchecked")
     public ArrayList<Descriptor<IvyBuilderType>> getBuilderTypeDescriptors() {
         ArrayList<Descriptor<IvyBuilderType>> buildTypeDescriptors = new ArrayList<Descriptor<IvyBuilderType>>();
-        buildTypeDescriptors.add(Hudson.getInstance().getDescriptor(AntIvyBuilderType.class));
-        if (Hudson.getInstance().getPlugin("nant") != null) {
-            buildTypeDescriptors.add(Hudson.getInstance().getDescriptor(NAntIvyBuilderType.class));
+        buildTypeDescriptors.add(Jenkins.getInstance().getDescriptor(AntIvyBuilderType.class));
+        if (Jenkins.getInstance().getPlugin("nant") != null) {
+            buildTypeDescriptors.add(Jenkins.getInstance().getDescriptor(NAntIvyBuilderType.class));
         }
         return buildTypeDescriptors;
     }

@@ -25,7 +25,6 @@ import jenkins.model.Jenkins;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.DependencyGraph;
-import hudson.model.Hudson;
 import hudson.model.ParametersAction;
 import hudson.model.Action;
 import hudson.model.Result;
@@ -104,7 +103,7 @@ public class IvyThresholdDependency extends IvyDependency {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private boolean inDownstreamProjects(AbstractProject<?,?> downstreamProject) {
-        DependencyGraph graph = Hudson.getInstance().getDependencyGraph();
+        DependencyGraph graph = Jenkins.getInstance().getDependencyGraph();
         Set<AbstractProject> tups = graph.getTransitiveUpstream(downstreamProject);
         
         List<AbstractProject<?,?>> downstreamProjects = getUpstreamProject().getDownstreamProjects();

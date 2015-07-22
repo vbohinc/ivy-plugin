@@ -36,6 +36,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.util.List;
 
 /**
@@ -138,7 +139,7 @@ final class SplittableBuildListener extends AbstractTaskListener implements Buil
     }
 
     private Object writeReplace() {
-        return new StreamBuildListener(logger);
+        return new StreamBuildListener(logger, Charset.defaultCharset());
     }
 
     private static final long serialVersionUID = 1L;

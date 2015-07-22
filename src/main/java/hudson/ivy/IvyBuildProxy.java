@@ -27,6 +27,7 @@ import hudson.FilePath;
 import hudson.model.Result;
 import hudson.remoting.Callable;
 import hudson.remoting.DelegatingCallable;
+import org.jenkinsci.remoting.RoleChecker;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -237,6 +238,9 @@ public interface IvyBuildProxy {
             }
 
             private static final long serialVersionUID = 1L;
+
+            @Override
+            public void checkRoles(RoleChecker checker) throws SecurityException {}
         }
     }
 }

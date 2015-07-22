@@ -33,11 +33,9 @@ import hudson.ivy.builder.IvyBuilderType;
 import hudson.model.Action;
 import hudson.model.Build;
 import hudson.model.BuildListener;
-import hudson.model.DependencyGraph;
 import hudson.model.Environment;
 import hudson.model.AbstractProject;
 import hudson.model.Fingerprint;
-import hudson.model.Hudson;
 import hudson.model.ParametersAction;
 import hudson.model.Result;
 import hudson.model.Run;
@@ -48,7 +46,6 @@ import hudson.remoting.Callable;
 import hudson.remoting.Channel;
 import hudson.scm.ChangeLogSet;
 import hudson.tasks.BuildStep;
-import hudson.tasks.BuildTrigger;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.Publisher;
 import hudson.util.StreamTaskListener;
@@ -66,6 +63,7 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.ivy.Ivy;
@@ -82,6 +80,7 @@ import org.apache.tools.ant.types.selectors.TokenizedPath;
 import org.apache.tools.ant.types.selectors.TokenizedPattern;
 import org.jenkinsci.lib.configprovider.model.Config;
 import org.jenkinsci.plugins.configfiles.common.CleanTempFilesAction;
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -375,7 +374,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 
     @Override
     public void run() {
-        run(new RunnerImpl());
+        execute(new RunnerImpl());
         getProject().updateTransientActions();
     }
 
@@ -408,7 +407,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                 effectiveResult = null;
                 boolean modified = false;
 
-                List<Action> actions = getActions();
+                List<? extends Action> actions = getAllActions();
                 Set<Class<? extends AggregatableAction>> individuals = new HashSet<Class<? extends AggregatableAction>>();
                 for (Action a : actions) {
                     if (a instanceof IvyAggregatedReport) {
@@ -426,7 +425,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                         // new AggregatableAction
                         IvyAggregatedReport mar = aa.createAggregatedAction(this, moduleBuilds);
                         mar.update(moduleBuilds, newBuild);
-                        actions.add(mar);
+                        addAction(mar);
                         modified = true;
                     }
                 }
@@ -730,7 +729,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                     String upstreamProjectName = upstreamCause.getUpstreamProject();
                     if (traversed.contains(upstreamCause.getUpstreamUrl() + upstreamCause.getUpstreamBuild())) continue;
                     traversed.add(upstreamCause.getUpstreamUrl() + upstreamCause.getUpstreamBuild());
-                    AbstractIvyProject upstreamProject = Hudson.getInstance().getItemByFullName(upstreamProjectName, AbstractIvyProject.class);
+                    AbstractIvyProject upstreamProject = Jenkins.getInstance().getItemByFullName(upstreamProjectName, AbstractIvyProject.class);
                     if (upstreamProject != null && upstreamProject != getParent() && (!(upstreamProject instanceof IvyModule) || !getParent().getModules().contains(upstreamProject))) {
                         upstreamCauses.add(upstreamProjectName);
                         Run upstreamBuild = upstreamProject.getBuildByNumber(upstreamCause.getUpstreamBuild());
@@ -797,7 +796,7 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             }
 
             // we might have added new modules
-            Hudson.getInstance().rebuildDependencyGraph();
+            Jenkins.getInstance().rebuildDependencyGraph();
 
             // module builds must start with this build's number
             for (IvyModule m : modules.values())
@@ -864,6 +863,9 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
             for (IvyModule m : modules)
                 modulePublishers.put(m.getModuleName(),m.createModulePublishers());
         }
+
+        @Override
+        public void checkRoles(RoleChecker checker) throws SecurityException {}
 
         private class FilterImpl extends IvyBuildProxy2.Filter<IvyBuildProxy2> implements Serializable {
             public FilterImpl(IvyBuildProxy2 core) {
@@ -1101,6 +1103,9 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
         }
 
         private static final long serialVersionUID = 1L;
+
+        @Override
+        public void checkRoles(RoleChecker checker) throws SecurityException {}
     }
 
     private static final Logger LOGGER = Logger.getLogger(IvyModuleSetBuild.class.getName());
@@ -1145,5 +1150,8 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
 			}
 			return false;
 		}
-	}
+
+        @Override
+        public void checkRoles(RoleChecker checker) throws SecurityException {}
+    }
 }

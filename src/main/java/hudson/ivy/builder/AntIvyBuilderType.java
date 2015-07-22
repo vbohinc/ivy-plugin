@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -158,7 +159,7 @@ public class AntIvyBuilderType extends IvyBuilderType {
         }
 
         public Ant.AntInstallation[] getInstallations() {
-            return Hudson.getInstance().getDescriptorByType(Ant.DescriptorImpl.class).getInstallations();
+            return Jenkins.getInstance().getDescriptorByType(Ant.DescriptorImpl.class).getInstallations();
         }
 
     }
