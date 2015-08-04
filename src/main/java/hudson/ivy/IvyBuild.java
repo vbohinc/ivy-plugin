@@ -512,15 +512,16 @@ public class IvyBuild extends AbstractIvyBuild<IvyModule, IvyBuild> {
             Object buildParent = build.getParent(); // workaround for javac inconvertible types with generics error
             env.put("IVY_MODULE_NAME", ((IvyModule) buildParent).getModuleName().name);
             env.put("IVY_MODULE_ORGANISATION", ((IvyModule) buildParent).getModuleName().organisation);
-            env.put("PARENT_WORKSPACE", ((IvyBuild) build).getModuleSetBuild().getWorkspace().getRemote());
-            addParentBuildEnvironment(build, env);
+            // find the nearest parent build (may not necessarily have the same build number)
+            final IvyModuleSetBuild ivyModuleSetBuild = ((IvyBuild) build).getModuleSetBuild();
+            // shouldn't be null, but it is a rare possibility, so best to be safe
+            if (ivyModuleSetBuild != null) {
+                env.put("PARENT_WORKSPACE", ivyModuleSetBuild.getWorkspace().getRemote());
+                addParentBuildEnvironment(ivyModuleSetBuild, env);
+            }
         }
 
-        private void addParentBuildEnvironment(AbstractBuild<?, ?> build, EnvVars env) {
-
-            IvyModuleSet ivyModuleSet = ((IvyModule) build.getParent()).getParent();
-            IvyModuleSetBuild ivyModuleSetBuild = ivyModuleSet.getBuildByNumber(build.number);
-
+        private void addParentBuildEnvironment(IvyModuleSetBuild ivyModuleSetBuild, EnvVars env) {
             //Build Parameters
             List<ParametersAction> parametersActions = ivyModuleSetBuild.getActions(ParametersAction.class);
             for (ParametersAction parametersAction : parametersActions) {
