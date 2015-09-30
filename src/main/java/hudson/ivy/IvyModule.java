@@ -33,6 +33,7 @@ import hudson.model.DependencyGraph;
 import hudson.model.DependencyGraph.Dependency;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.listeners.ItemListener;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Resource;
@@ -198,6 +199,23 @@ public final class IvyModule extends AbstractIvyProject<IvyModule, IvyBuild> imp
     public boolean isBuildable() {
         // not buildable if the parent project is disabled
         return super.isBuildable() && getParent().isBuildable();
+    }
+
+    /**
+     * Marks the build as disabled.
+     * Overridden because the method in AbstractProject now checks
+     * supportsMakeDisabled() (since 1.585) which we want to keep as
+     * false for Ivy modules.
+     * @param b true - disable, false - enable
+     */
+    public void makeDisabled(boolean b) throws IOException {
+        if(disabled==b)     return; // noop
+        this.disabled = b;
+        if(b)
+            Jenkins.getInstance().getQueue().cancel(this);
+
+        save();
+        ItemListener.fireOnUpdated(this);
     }
 
     /**
