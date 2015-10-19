@@ -475,6 +475,22 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                         settings = getWorkspace().child(settingsFile).getRemote();
                     }
                 }
+
+                // run pre build steps
+                if (!preBuild(listener, project.getPrebuilders())
+                        || !preBuild(listener, project.getPostbuilders())
+                        || !preBuild(listener, project.getPublishers())) {
+                    setResult(Result.FAILURE);
+                    return Result.FAILURE;
+                }
+                if (!build(listener, project.getPrebuilders().toList())) {
+                    setResult(Result.FAILURE);
+                    return Result.FAILURE;
+                }
+                if (!preBuild(listener, project.getPublishers()))
+                    return Result.FAILURE;
+
+                // parse descriptor files
                 parseIvyDescriptorFiles(listener, logger, envVars);
                 if (AbstractIvyBuild.debug)
                     logger.println("Parsed Ivy descriptors in " + (System.currentTimeMillis() - startTime) + "ms");
@@ -487,21 +503,6 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                 }
 
                 if (!project.isAggregatorStyleBuild()) {
-
-                    // run pre build steps
-                    if(!preBuild(listener,project.getPrebuilders())
-                            || !preBuild(listener,project.getPublishers())){
-                        setResult(Result.FAILURE);
-                        return Result.FAILURE;
-                    }
-
-                    if(!build(listener,project.getPrebuilders().toList())){
-                        setResult(Result.FAILURE);
-                        return Result.FAILURE;
-                    }
-
-                    if (!preBuild(listener, project.getPublishers()))
-                        return Result.FAILURE;
 
                     // start module builds
                     Set<IvyModule> modulesTriggeredByUpstream = new HashSet<IvyModule>();
@@ -604,22 +605,6 @@ public class IvyModuleSetBuild extends AbstractIvyBuild<IvyModuleSet, IvyModuleS
                             // getEnvironment to do
                             // this
                         }
-
-                        // run pre build steps
-                        if(!preBuild(listener,project.getPrebuilders())
-                                || !preBuild(listener,project.getPostbuilders())
-                                || !preBuild(listener,project.getPublishers())){
-                            setResult(r = Result.FAILURE);
-                            return r;
-                        }
-
-                        if(!build(listener,project.getPrebuilders().toList())){
-                            setResult(r = Result.FAILURE);
-                            return r;
-                        }
-
-                        if (!preBuild(listener, project.getPublishers()))
-                            return Result.FAILURE;
 
                         List<String> changedModules = new ArrayList<String>();
                         // Check if incrementalBuild is selected and that
