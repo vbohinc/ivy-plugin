@@ -28,6 +28,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import hudson.EnvVars;
+import hudson.model.Computer;
+import hudson.model.Node;
+import hudson.slaves.EnvironmentVariablesNodeProperty;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
+import hudson.util.DescribableList;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -98,14 +105,13 @@ public class AntIvyBuilderType extends IvyBuilderType {
      * @param environment
      */
     protected String getCalculatedAntOpts(List<Environment> buildEnvironments) {
-        String antOpts = null;
+        String antOpts = getSlaveAntOpts();
         if ((this.antOpts != null) && (this.antOpts.trim().length() > 0)) {
-            antOpts = this.antOpts.replaceAll("[\t\r\n]+", " ");
-        } else {
+            antOpts = (antOpts == null ? cleanWhitespace(this.antOpts) : antOpts + " " + cleanWhitespace(this.antOpts)).trim();
+        }
+        if (antOpts == null) {
             String globalOpts = IvyModuleSet.DESCRIPTOR.getGlobalAntOpts();
-            if (globalOpts != null) {
-                antOpts = globalOpts.replaceAll("[\t\r\n]+", " ");
-            }
+            if (globalOpts != null) antOpts = cleanWhitespace(globalOpts);
         }
         String additionalArgs = getAdditionalAntOpts(buildEnvironments);
         if (StringUtils.isNotBlank(additionalArgs)) {
@@ -113,6 +119,30 @@ public class AntIvyBuilderType extends IvyBuilderType {
         } else {
             return antOpts;
         }
+    }
+
+    private String getSlaveAntOpts() {
+        Node node = Computer.currentComputer().getNode();
+        DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = node.getNodeProperties();
+        for (NodeProperty<?> nodeProperty : nodeProperties) {
+            if (nodeProperty instanceof EnvironmentVariablesNodeProperty) {
+                EnvironmentVariablesNodeProperty environmentVariablesNodeProperty
+                        = (EnvironmentVariablesNodeProperty) nodeProperty;
+                EnvVars envVars = environmentVariablesNodeProperty.getEnvVars();
+                if (envVars != null) {
+                    for (Map.Entry<String, String> entry : envVars.entrySet()) {
+                        if (entry.getKey().equalsIgnoreCase("ANT_OPTS")) {
+                            return cleanWhitespace(entry.getValue());
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private String cleanWhitespace(String value) {
+        return value != null ? value.replaceAll("[\t\r\n]+", " ").trim() : null;
     }
 
     public String getBuildFile() {
@@ -125,12 +155,7 @@ public class AntIvyBuilderType extends IvyBuilderType {
 
     @Override
     public Map<String, String> getEnvironment() {
-        Map<String, String> envs = new HashMap<String, String>();
-        String opts = getCalculatedAntOpts(null);
-        if (opts != null) {
-            envs.put("ANT_OPTS", opts);
-        }
-        return envs;
+        return new HashMap<String, String>();
     }
 
     @Override
